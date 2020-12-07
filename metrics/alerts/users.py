@@ -11,7 +11,8 @@ import pandas as pd
 from typing import Dict, Mapping
 from datetime import datetime
 
-from . import statistics_by_month_by_dispo, VALID_ALERT_STATS, FRIENDLY_STAT_NAME_MAP
+from ..helpers import get_month_keys_between_two_dates
+from . import statistics_by_month_by_dispo, VALID_ALERT_STATS, FRIENDLY_STAT_NAME_MAP, ALERTS_BY_MONTH_AND_USER_QUERY
 
 UserMap = Mapping[int, Dict[str, str]]
 UserStatMap = Mapping[str, Mapping[str, pd.DataFrame]]
@@ -71,3 +72,32 @@ def generate_user_alert_stats(alerts: pd.DataFrame, users: UserMap, business_hou
         all_user_alert_stats[user_id] = user_alert_stats
 
     return all_user_alert_stats
+
+def alert_quantities_by_user_by_month(start_date: datetime,
+                                      end_date: datetime,
+                                      con: pymysql.connections.Connection,
+                                      query: str =ALERTS_BY_MONTH_AND_USER_QUERY,
+                                      exclude_analysts_without_data=True) -> pd.DataFrame:
+    """Get Alert quantities by user and month."""
+
+    months = get_month_keys_between_two_dates(start_date, end_date)
+    users = get_all_users(con)
+
+    cursor = con.cursor()
+
+    data = {}
+    for uid, udata in users.items():
+        month_data = {}
+        for month in months:
+            cursor.execute(query, (month, udata['username']))
+            stats = cursor.fetchone()
+            if stats:
+                month_data[month] = stats[0]
+        if month_data and exclude_analysts_without_data:
+            # don't record users that have no data
+            data[udata['username']] = month_data
+
+    user_dispositions_per_month = pd.DataFrame(data=data)
+    user_dispositions_per_month.name = "Analyst Alert Dispositions"
+    user_dispositions_per_month.fillna(value=0,inplace=True)
+    return user_dispositions_per_month

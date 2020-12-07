@@ -55,3 +55,11 @@ ALERTS_BY_ALERT_TYPE_QUERY = """select DATE_FORMAT(insert_date, '%%Y%%m') AS mon
                                 FROM alerts WHERE alert_type=%s
                                 AND insert_date BETWEEN %s AND %s AND disposition is not NULL {}{}
                              """
+
+
+# Database query for counting alerts by month and user
+ALERTS_BY_MONTH_AND_USER_QUERY = """SELECT count(a.id) AS 'Alerts', DATE_FORMAT(a.insert_date,'%%Y%%m') AS Month, users.username AS User
+                                    FROM alerts a JOIN users ON users.id=a.disposition_user_id WHERE a.alert_type!='faqueue'
+                                    AND alert_type!='dlp - internal threat' AND alert_type!='dlp-exit-alert' AND
+                                    DATE_FORMAT(a.insert_date, '%%Y%%m')=%s and users.username=%s GROUP BY Month
+                                  """

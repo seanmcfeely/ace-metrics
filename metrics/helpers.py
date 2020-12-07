@@ -6,10 +6,11 @@ import logging
 import pymysql
 import tarfile
 
-import datetime
-
 import pandas as pd
 from configparser import ConfigParser
+from datetime import timedelta, datetime, time
+from dateutil.relativedelta import relativedelta
+
 from typing import Mapping, List, Tuple
 
 from .alerts import FRIENDLY_STAT_NAME_MAP
@@ -17,6 +18,49 @@ from .alerts import FRIENDLY_STAT_NAME_MAP
 CompanyID = int
 CompanyName = str
 CompanyMap = Mapping[CompanyID, CompanyName]
+
+def generate_html_plot(data_table: pd.DataFrame,
+                       kind="line",
+                       legend="top_left",
+                       toolbar_location="above",
+                       xlabel="Month",
+                       ylable=None) -> str:
+    """Convert a datatable into an HTML Bokeh plot.
+
+    This is very customized with defaults.
+
+    Plot kinds from pandas_bokeh:
+    https://github.com/PatrikHlobil/Pandas-Bokeh/blob/1a8309ca7b5cbee527cf951668e4f8a1250cecb3/pandas_bokeh/plot.py#L167
+
+    Args:
+        data_table: A pandas DataFrame
+
+    Returns:
+        An HTML element representing the plot,
+        as a string.
+    """
+    import math
+    import pandas_bokeh
+
+    if ylable is None:
+        ylabel="Number of Alerts"
+
+    p = data_table.plot_bokeh(kind=kind,
+                              show_figure=False,
+                              legend=legend,
+                              toolbar_location=toolbar_location,
+                              figsize=(900,600),
+                              title=FRIENDLY_STAT_NAME_MAP[stat],
+                              xlabel=xlabel,
+                              ylabel=ylabel)
+
+    # override legend defaults
+    p.legend.background_fill_alpha = 0
+    p.legend.border_line_alpha = 0
+    p.xaxis.major_label_orientation = math.pi/4
+    if ylabel is not None and 'time' in data_table.name.lower():
+        p.yaxis.axis_label = "Hours"
+    return pandas_bokeh.embedded_html(p)
 
 def get_companies(con: pymysql.connections.Connection) -> CompanyMap:
     """Query the database for all companies.
@@ -67,7 +111,7 @@ def sanitize_table_name(table_name=None, keep_friendly=False) -> str:
     """
 
     if table_name is None:
-        return f"No name - {datetime.datetime.now().timestamp()}"
+        return f"No name - {datetime.now().timestamp()}"
 
     safe_name = table_name.strip()
 
@@ -161,7 +205,7 @@ def dataframes_to_xlsx_bytes(tables: List[pd.DataFrame]) -> bytes:
         if clean_table_name in tab_names:
             logging.warning(f"name collision for {clean_table_name}")
             # 30 char collision name
-            clean_table_name = f"Collision - {datetime.datetime.now().timestamp()}"
+            clean_table_name = f"Collision - {datetime.now().timestamp()}"
 
         tab_names.append(clean_table_name)
 
@@ -225,3 +269,16 @@ def connect_to_database(config_path: str) -> pymysql.connections.Connection:
 
     db = pymysql.connect(host=config['host'], user=config['user'], password=password, database=config['database'], ssl=ssl_settings)
     return db
+
+
+def get_month_keys_between_two_dates(start_date: datetime, end_date: datetime) -> list:
+    """Get unique %Y%m (Months) between dates."""
+
+    months = []
+    while start_date.year <= end_date.year:
+        while start_date.month <= end_date.month:
+            months.append(datetime.strftime(start_date, '%Y%m'))
+            start_date += relativedelta(months=1)
+            break
+
+    return months

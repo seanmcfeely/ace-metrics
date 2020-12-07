@@ -68,6 +68,8 @@ def build_metric_user_parser(user_parser: argparse.ArgumentParser) -> None:
                               help='List all users')
     user_parser.add_argument('-u', '--user', action='append', dest='users', default=[],
                              help='A list of users to generate statistics for. Default: All users.')
+    user_parser.add_argument('-tac', '--total-alert-count-breakdown',
+                             action='store_true', help="Total count of Alerts worked by analyst by month.")
 
     for stat in VALID_ALERT_STATS:
         user_parser.add_argument(f'--{stat}', action='store_true', dest=f"user_stat_{stat}",
@@ -234,7 +236,9 @@ def execute_metric_arguments(db: pymysql.connections.Connection, args):
                                  generate_overall_summary_table,
                                  define_business_time
                                 )
-    from .alerts.users import get_all_users, generate_user_alert_stats
+    from .alerts.users import ( get_all_users,
+                                generate_user_alert_stats,
+                                alert_quantities_by_user_by_month )
     from .alerts.alert_types import ( unique_alert_types_between_dates,
                                              count_quantites_by_alert_type,
                                              get_alerts_between_dates_by_type,
@@ -312,6 +316,15 @@ def execute_metric_arguments(db: pymysql.connections.Connection, args):
                     user_ids.extend([user_id for user_id, user in users.items() if username == user['username']])
             else:
                 user_ids = [user_id for user_id in users.keys()]
+
+            if args.total_alert_count_breakdown:
+                start_date = datetime.datetime.strptime(args.start_datetime, '%Y-%m-%d %H:%M:%S')
+                end_date = datetime.datetime.strptime(args.end_datetime, '%Y-%m-%d %H:%M:%S')
+                user_dispositions_per_month = alert_quantities_by_user_by_month(start_date, end_date, db)
+                if args.users:
+                    tables.append(user_dispositions_per_month[args.users])
+                else:
+                    tables.append(user_dispositions_per_month)
 
         if args.alert_metric_target == 'types':
             if args.overall_count_breakdown:

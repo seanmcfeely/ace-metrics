@@ -1,2 +1,2 @@
 config.ini
-metrics/__pycache*
+*__pycache__*
