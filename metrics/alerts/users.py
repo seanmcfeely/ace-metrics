@@ -98,6 +98,6 @@ def alert_quantities_by_user_by_month(start_date: datetime,
             data[udata['username']] = month_data
 
     user_dispositions_per_month = pd.DataFrame(data=data)
-    user_dispositions_per_month.name = "Analyst Alert Dispositions"
+    user_dispositions_per_month.name = "Alert Quantities by Analyst"
     user_dispositions_per_month.fillna(value=0,inplace=True)
     return user_dispositions_per_month

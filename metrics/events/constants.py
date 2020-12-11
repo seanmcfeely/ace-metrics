@@ -11,6 +11,10 @@ INCIDENT_DISPOSITIONS = [ 'EXPLOITATION',
                           'DAMAGE'
                         ]
 
+# The core ACE specific killchain dispositions that
+# mean an event should be considered an event.
+EVENT_DISPOSITIONS = ['DELIVERY'] + INCIDENT_DISPOSITIONS
+
 # Database query for getting events between two dates
 #  and pulling relevant details from the various table mappings
 # Allows for reduction by list of company ids
@@ -43,5 +47,30 @@ EVENT_DB_QUERY = """SELECT
                         events.status='CLOSED' AND events.creation_date 
                         BETWEEN %s AND %s {}{}
                     GROUP BY events.name, events.creation_date, event_mapping.event_id 
+                    ORDER BY events.creation_date
+                """
+
+# Database query for getting events between two dates
+# and organized by a time period (week/month) for the purpose
+# of counting. Allows for reduction by list of company ids.
+EVENT_COUNT_TIME_DB_QUERY = """SELECT
+                        events.id, DATE_FORMAT(events.creation_date, '{<[TIME_FORMAT]>}') as '{<[TIME_KEY]>}',
+                        events.creation_date as 'Date', events.name as 'Event',
+                        GROUP_CONCAT(DISTINCT alerts.disposition SEPARATOR ', ') as 'Disposition',
+                        GROUP_CONCAT(DISTINCT company.name SEPARATOR ', ') as 'Company',
+                        count(DISTINCT event_mapping.alert_id) as '# Alerts'
+                    FROM events
+                        JOIN event_mapping
+                            ON events.id=event_mapping.event_id
+                        JOIN company_mapping
+                            ON events.id=company_mapping.event_id
+                        JOIN company
+                            ON company.id=company_mapping.company_id
+                        JOIN alerts
+                            ON alerts.id=event_mapping.alert_id
+                    WHERE
+                        events.status='CLOSED' AND events.creation_date
+                        BETWEEN %s AND %s {}{}
+                    GROUP BY events.name, events.creation_date, event_mapping.event_id
                     ORDER BY events.creation_date
                 """

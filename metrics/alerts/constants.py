@@ -63,3 +63,9 @@ ALERTS_BY_MONTH_AND_USER_QUERY = """SELECT count(a.id) AS 'Alerts', DATE_FORMAT(
                                     AND alert_type!='dlp - internal threat' AND alert_type!='dlp-exit-alert' AND
                                     DATE_FORMAT(a.insert_date, '%%Y%%m')=%s and users.username=%s GROUP BY Month
                                   """
+
+# Database query for counting alerts by month and user
+ALERTS_BY_MONTH_AND_TYPE_QUERY = """SELECT count(id) AS 'Alerts', DATE_FORMAT(insert_date,'%%Y%%m') AS Month
+                                    FROM alerts WHERE DATE_FORMAT(insert_date, '%%Y%%m')=%s
+                                    AND ( {} ) GROUP BY Month
+                                  """

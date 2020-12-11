@@ -13,7 +13,13 @@ from datetime import datetime
 
 #from ..helpers import get_companies, apply_company_selection_to_query
 
-from . import ALERTS_BY_ALERT_TYPE_QUERY, statistics_by_month_by_dispo, VALID_ALERT_STATS, FRIENDLY_STAT_NAME_MAP
+from ..helpers import get_month_keys_between_two_dates
+
+from . import ( ALERTS_BY_ALERT_TYPE_QUERY,
+                statistics_by_month_by_dispo,
+                VALID_ALERT_STATS,
+                FRIENDLY_STAT_NAME_MAP,
+                ALERTS_BY_MONTH_AND_TYPE_QUERY )
 
 Stat = str
 Alerts = pd.DataFrame
@@ -182,3 +188,63 @@ def generate_alert_type_stats(alert_type_map: AlertTypeMap, business_hours=False
         stats_by_alert_type[alert_type] = alert_type_stats
 
     return stats_by_alert_type
+
+
+def alert_type_quantities_by_category_by_month(start_date: datetime,
+                                               end_date: datetime,
+                                               con: pymysql.connections.Connection,
+                                               alert_type_categories_key: dict,
+                                               query: str =ALERTS_BY_MONTH_AND_TYPE_QUERY,
+                                               exclude_analysts_without_data=True) -> pd.DataFrame:
+    """Get Alert quantities by alert type category and month.
+
+       This is useful if you have a diverse set of alert types
+       and alerting tools that you want to group into buckets.
+    """
+
+    months = get_month_keys_between_two_dates(start_date, end_date)
+    alert_types = unique_alert_types_between_dates(start_date, end_date, con)
+
+    #create alert type categories map
+    raw_at_accounted_for = []
+    alert_type_categories_map = {_k:[] for _k in alert_type_categories_key.keys()}
+    for category,at_identifers in alert_type_categories_key.items():
+        for at in alert_types:
+            if at in raw_at_accounted_for:
+                continue
+            for _id in at_identifers:
+                if at.startswith(_id):
+                    alert_type_categories_map[category].append(at)
+                    raw_at_accounted_for.append(at)
+
+    def _diff(li1, li2):
+        return (list(list(set(li1)-set(li2)) + list(set(li2)-set(li1))))
+
+    uncategorized_alert_types = _diff(raw_at_accounted_for, alert_types)
+    if uncategorized_alert_types:
+        alert_type_categories_map['other'] = uncategorized_alert_types
+ 
+    cursor = con.cursor()
+
+    data = {}
+    for category, atypes in alert_type_categories_map.items():
+        month_data = {}
+        for month in months:
+            month_data[month] = 0
+            if not atypes:
+                continue
+            _query = query.format(' OR '.join(['alert_type=%s' for at in atypes]))
+            params = [month] + atypes
+            cursor.execute(_query, params)
+            stats = cursor.fetchone()
+            if stats:
+                month_data[month] = stats[0]
+        data[category] = month_data
+
+    alert_categories_per_month = pd.DataFrame(data=data)
+    alert_categories_per_month.name = "Alert Type Category Quantities"
+    alert_categories_per_month.fillna(value=0,inplace=True)
+    for col in alert_categories_per_month.select_dtypes(include=['float64']):
+        alert_categories_per_month[col] = alert_categories_per_month[col].astype('int')
+ 
+    return alert_categories_per_month

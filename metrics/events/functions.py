@@ -15,7 +15,11 @@ import pandas as pd
 
 from datetime import datetime
 
-from .constants import INCIDENT_DISPOSITIONS, EVENT_DB_QUERY
+from .constants import ( INCIDENT_DISPOSITIONS,
+                         EVENT_DISPOSITIONS,
+                         EVENT_DB_QUERY,
+                         EVENT_COUNT_TIME_DB_QUERY
+                       )
 
 def add_email_alert_counts_per_event(events: pd.DataFrame,
                                      con: pymysql.connections.Connection,
@@ -183,3 +187,46 @@ def get_incidents_from_events(events: pd.DataFrame, incident_dispositions=INCIDE
     incidents = incidents.drop(columns=['id'])
     incidents.name = "Incidents"
     return incidents
+
+def event_count_by_disposition(events: pd.DataFrame) -> dict:
+    """Count event totals per disposition"""
+
+    events.set_index('Disposition', inplace=True)
+    dispositions = events.index.get_level_values('Disposition').unique()
+
+    dispo_data = {}
+    for dispo in dispositions:
+        dispo_data[dispo] = len(events.loc[dispo])
+
+    return dispo_data
+    dispo_df = pd.DataFrame(data=dispo_data, columns=dispositions)
+    return dispo_df
+
+def count_event_dispositions_by_time_period(time_key: str,
+                                            events: pd.DataFrame,
+                                            dispositions=EVENT_DISPOSITIONS) -> pd.DataFrame:
+    """Count events by their disposition over time.
+
+       NOTE: events like EVENT_COUNT_TIME_DB_QUERY.
+    """
+    time_keys = events.index.get_level_values(time_key).unique()
+
+    data_map = {}
+    for dispo in dispositions:
+        data_map[dispo] = {}
+        for time_period in time_keys:
+            data_map[dispo][time_period] = 0
+
+            # all events during the time_period
+            period_df = events.loc[time_period]
+
+            if isinstance(period_df, pd.Series):
+                # only a sinlge instance results in Series
+                period_df = pd.DataFrame([period_df])
+
+            period_dispo_data = event_count_by_disposition(period_df)
+
+            if dispo in period_dispo_data:
+                data_map[dispo][time_period] = period_dispo_data[dispo]
+
+    return pd.DataFrame(data=data_map)

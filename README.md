@@ -2,6 +2,10 @@
 
 This library is intended to help with the calculation and management of metrics as they pertain to any data produced by the ACE ecosystem. As of now, the library meets a base set of use cases for answering questions that arose during the initial organic operational development that took place around ACE's development. So it's certainly not the end-all-be-all but hopefully, it can serve as a base for further statistical analysis, metricization, analytics, and real-time presentations.
 
+## Updates
+
+ - 12/11/2020: Graphing functions were added, as well as, some new graphs for alerts, users, alert type, and events.
+
 ## Alert Metrics
 
 The following statistics are available for alert based metrics and are used over and over again.

@@ -24,7 +24,9 @@ def generate_html_plot(data_table: pd.DataFrame,
                        legend="top_left",
                        toolbar_location="above",
                        xlabel="Month",
-                       ylable=None) -> str:
+                       figsize=(1000,600),
+                       title=None,
+                       ylabel=None) -> str:
     """Convert a datatable into an HTML Bokeh plot.
 
     This is very customized with defaults.
@@ -42,15 +44,22 @@ def generate_html_plot(data_table: pd.DataFrame,
     import math
     import pandas_bokeh
 
-    if ylable is None:
-        ylabel="Number of Alerts"
+    if ylabel is None:
+        ylabel="Hours"
+
+    if title is None:
+        try:
+            title = data_table.name
+        except AttributeError:
+            title = ""    
 
     p = data_table.plot_bokeh(kind=kind,
                               show_figure=False,
                               legend=legend,
                               toolbar_location=toolbar_location,
-                              figsize=(900,600),
-                              title=FRIENDLY_STAT_NAME_MAP[stat],
+                              figsize=figsize,
+                              title=title,
+                              zooming=False,
                               xlabel=xlabel,
                               ylabel=ylabel)
 
@@ -58,8 +67,8 @@ def generate_html_plot(data_table: pd.DataFrame,
     p.legend.background_fill_alpha = 0
     p.legend.border_line_alpha = 0
     p.xaxis.major_label_orientation = math.pi/4
-    if ylabel is not None and 'time' in data_table.name.lower():
-        p.yaxis.axis_label = "Hours"
+    if ylabel is not None and 'alert' in title.lower():
+        p.yaxis.axis_label = "Number of Alerts"
     return pandas_bokeh.embedded_html(p)
 
 def get_companies(con: pymysql.connections.Connection) -> CompanyMap:
