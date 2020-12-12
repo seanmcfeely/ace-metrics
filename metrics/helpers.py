@@ -5,9 +5,9 @@ import os
 import logging
 import pymysql
 import tarfile
+import configparser
 
 import pandas as pd
-from configparser import ConfigParser
 from datetime import timedelta, datetime, time
 from dateutil.relativedelta import relativedelta
 
@@ -246,27 +246,17 @@ def dataframes_to_xlsx_bytes(tables: List[pd.DataFrame]) -> bytes:
 
     return filebytes
 
-def connect_to_database(config_path: str) -> pymysql.connections.Connection:
+def connect_to_database(config: configparser.SectionProxy) -> pymysql.connections.Connection:
     """Connect to a configured ACE DB.
 
-    Load configuration items from a config at config_path.
-
     Args:
-        config_path: Path to a connection configuration
+        config: A configparser section that defines
+          the database connection.
 
     Returns:
         pymysql.connections.Connection to an ACE DB
     """
     from getpass import getpass
-
-    if not os.path.exists(config_path):
-        logging.error(f"{config_path} does not exist.")
-        return False
-
-    config = ConfigParser()
-    config.read(config_path)
-
-    config = config['default']
 
     ssl_settings = None
     if os.path.exists(config.get('ssl_ca_path')):

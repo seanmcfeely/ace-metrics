@@ -2,7 +2,7 @@ import os
 import sys
 import json
 import logging
-
+import configparser
 import datetime
 import pymysql
 import argparse
@@ -456,6 +456,7 @@ def cli_metrics():
     """
 
     from .helpers import connect_to_database
+    from .config import load_config, DEFAULT_CONFIG_PATHS
 
     parser = argparse.ArgumentParser(description="CLI Interface to ACE Metrics")
     parser.add_argument('-d', '--debug', action='store_true', help="Turn on debug logging.")
@@ -466,6 +467,20 @@ def cli_metrics():
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
-    db = connect_to_database(args.config_path)
+    config_paths = DEFAULT_CONFIG_PATHS
+    if args.config_path:
+        if not os.path.exists(args.config_path):
+            logging.error(f"{args.config_path} does not exist.")
+            return False
+        config_paths.append(args.config_path) 
+
+    config = load_config(config_paths)
+    if not config:
+        logging.error("You must define and supply a configuration. See `ace-metrics -h | grep config`")
+        return False
+
+    database_config = config['database_default']
+
+    db = connect_to_database(database_config)
 
     return execute_metric_arguments(db, args)
