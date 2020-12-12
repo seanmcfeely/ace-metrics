@@ -1,2 +1,6 @@
 config.ini
 *__pycache__*
+ace_metrics.egg-info
+build/
+dist/
+venv/
