@@ -264,7 +264,7 @@ def connect_to_database(config: configparser.SectionProxy) -> pymysql.connection
 
     password = config.get('pass')
     if not password:
-        password = getpass(f"Enter password for {config['host']}: ")
+        password = getpass(f"Enter password for {config['user']}@{config['host']}: ")
 
     db = pymysql.connect(host=config['host'], user=config['user'], password=password, database=config['database'], ssl=ssl_settings)
     return db
