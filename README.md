@@ -1,6 +1,8 @@
 # Metrics for the ACE Ecosystem
 
-This library is intended to help with the calculation and management of metrics as they pertain to any data produced by the ACE ecosystem. As of now, the library meets a base set of use cases for answering questions that arose during the initial organic operational development that took place around ACE's development. So it's certainly not the end-all-be-all but hopefully, it can serve as a base for further statistical analysis, metricization, analytics, and real-time presentations.
+This library is intended to help with the calculation and management of metrics as they pertain to _measureing_ an ACE based IDR operation. Currently, it doesn't measure the performance of ACE itself or the ACE ecosystem toolsets.
+
+As of now, the library meets a base set of use cases for answering questions that arose during the initial organic _operational_ development that took place around ACE's development. I wrote all of this with specific use-cases I wanted to capture, however, I tried to make it easily extendable to meet new ones. So, it's certainly not the end-all-be-all but hopefully, it can serve as a base for further statistical analysis, metricization, analytics, and real-time presentations.
 
 ## Updates
 
@@ -180,7 +182,7 @@ Currently, the project is structured so that every directory in the root `$SAQ_H
 
         One way to do this would be to create a daemon service that can run and continuously update the pivot tables. This will allow for near real-time access to the data and also lay a groundwork for real-time graphical metrics to eventually populate a dashboard.
 
-        The pivot table metrics could run in memory in something like REDIS, as long as the metrics service is running. AND/OR.. a time-series database.. or explore more options.
+        The pivot table metrics could run in memory in something like REDIS, as long as the metrics service is running. AND/OR.. a time-series database.. or storing metric results in ELK and using the update document feature if/when the data changes.
 
 #### TO-DO
 
@@ -189,3 +191,4 @@ Currently, the project is structured so that every directory in the root `$SAQ_H
 + [ ] Should config items be seperate from ACE or configurable in ACE?
 + [ ] Add observable statistics.
     - [ ] Distinguish detection points? yara, indicator, etc.
++ [ ] Add SIP integration
