@@ -4,7 +4,7 @@
 import re
 import sys
 
-from metrics.cli import cli_metrics
+from ace_metrics.cli import cli_metrics
 
 if __name__ == '__main__':
     sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])

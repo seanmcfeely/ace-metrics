@@ -449,8 +449,6 @@ def execute_metric_arguments(db: pymysql.connections.Connection, args):
         for table in tables:
             stdout_like(table, format=args.stdout_format)
 
-    db.close()
-
 def cli_metrics():
     """Main entry point for metrics on the CLI.
     """
