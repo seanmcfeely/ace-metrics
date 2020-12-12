@@ -7,8 +7,8 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-__version__ = "0.1.0"
-description = "A lib for measuring ACE based IDR operations."
+__version__ = '0.1.0'
+description = 'A lib for measuring ACE based IDR operations.'
 
 here = path.abspath(path.dirname(__file__))
 
@@ -36,10 +36,8 @@ setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
-        "Intended Audience :: Information Technology",
-        "Intended Audience :: Cyber Security",
-        "Intended Audience :: Intel Detection and Response",
-        'License :: OSI Approved :: GNU General Public License v3.0',
+        'Intended Audience :: Information Technology',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3',
     ],
