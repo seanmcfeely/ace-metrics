@@ -32,13 +32,13 @@ def get_all_users(con: pymysql.connections.Connection) -> UserMap:
              }
     """
     cursor = con.cursor()
-    # NOTE: come back and add `enabled` once the column exists
-    cursor.execute("SELECT id,username,display_name,queue FROM users")
+    cursor.execute("SELECT id,username,display_name,queue,enabled FROM users")
     users = {}
-    for user_id, username, display_name, queue in cursor.fetchall():
+    for user_id, username, display_name, queue, enabled in cursor.fetchall():
         users[user_id] = {'username': username,
                           'display_name': display_name,
-                          'queue': queue}
+                          'queue': queue,
+                          'enabled': enabled}
     return users
 
 def generate_user_alert_stats(alerts: pd.DataFrame, users: UserMap, business_hours=False) -> UserStatMap:

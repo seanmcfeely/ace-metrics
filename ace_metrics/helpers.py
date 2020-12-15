@@ -279,5 +279,7 @@ def get_month_keys_between_two_dates(start_date: datetime, end_date: datetime) -
             months.append(datetime.strftime(start_date, '%Y%m'))
             start_date += relativedelta(months=1)
             break
+        if start_date.month ==  end_date.month and start_date.year == end_date.year:
+            break
 
     return months
