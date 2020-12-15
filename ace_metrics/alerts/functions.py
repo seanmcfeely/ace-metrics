@@ -379,62 +379,63 @@ def organize_alerts_by_time_category(alerts: pd.DataFrame,
     # track alert indexes
     i=0
     for row in alerts.itertuples():
-        if row.insert_date.weekday() == 0: 
+        bh_insert_date = _datetime_to_time_zone(row.insert_date, time_zone=business_hours.time_zone)
+        if bh_insert_date.weekday() == 0:
             # Monday
-            if row.insert_date.time() < time(hour=start_hour, minute=0, second=0):
+            if bh_insert_date.time() < time(hour=start_hour, minute=0, second=0):
                 # Before business hours -> the weekend
                 weekend_indexes.append(i)
-            elif row.insert_date.time() >= time(hour=end_hour, minute=0, second=0):
+            elif bh_insert_date.time() >= time(hour=end_hour, minute=0, second=0):
                 # After business hours -> weeknight
                 night_indexes.append(i)
             else: 
                 # Buisness hours
                 bday_indexes.append(i)
 
-        elif row.insert_date.weekday() == 1:
+        elif bh_insert_date.weekday() == 1:
             # Tuesday: either side of business hours -> week night
-            if ( row.insert_date.time() < time(hour=start_hour, minute=0, second=0)
-                 or row.insert_date.time() >= time(hour=end_hour, minute=0, second=0) ):
+            if ( bh_insert_date.time() < time(hour=start_hour, minute=0, second=0)
+                 or bh_insert_date.time() >= time(hour=end_hour, minute=0, second=0) ):
                 night_indexes.append(i)
             else:
                 # Buisness hours
                 bday_indexes.append(i)
 
-        elif row.insert_date.weekday() == 2:
+        elif bh_insert_date.weekday() == 2:
             # Wednesday: either side of business hours -> week night
-            if ( row.insert_date.time() < time(hour=start_hour, minute=0, second=0)
-                 or row.insert_date.time() >= time(hour=end_hour, minute=0, second=0) ):
+            if ( bh_insert_date.time() < time(hour=start_hour, minute=0, second=0)
+                 or bh_insert_date.time() >= time(hour=end_hour, minute=0, second=0) ):
                 night_indexes.append(i)
             else:
                 # Buisness hours
                 bday_indexes.append(i)
 
-        elif row.insert_date.weekday() == 3:
+        elif bh_insert_date.weekday() == 3:
             # Thursday: either side of business hours -> week night
-            if ( row.insert_date.time() < time(hour=start_hour, minute=0, second=0)
-                 or row.insert_date.time() >= time(hour=end_hour, minute=0, second=0) ):
+            if ( bh_insert_date.time() < time(hour=start_hour, minute=0, second=0)
+                 or bh_insert_date.time() >= time(hour=end_hour, minute=0, second=0) ):
                 night_indexes.append(i)
             else:
                 # Buisness hours
                 bday_indexes.append(i)
 
-        elif row.insert_date.weekday() == 4:
+        elif bh_insert_date.weekday() == 4:
             # Friday
-            if row.insert_date.time() < time(hour=start_hour, minute=0, second=0):
+            if bh_insert_date.time() < time(hour=start_hour, minute=0, second=0):
                 # Before business hours -> weeknight
                 night_indexes.append(i)
-            elif row.insert_date.time() >= time(hour=end_hour, minute=0, second=0):
+            elif bh_insert_date.time() >= time(hour=end_hour, minute=0, second=0):
                 # After business hours -> weekend
                 weekend_indexes.append(i)
             else:
                 # Buisness hours
                 bday_indexes.append(i)
 
-        elif row.insert_date.weekday() == 5: 
+        elif bh_insert_date.weekday() == 5:
             # Saturday -> weekend bucket
             weekend_indexes.append(i)
         
-        elif row.insert_date.weekday() == 6: 
+        elif bh_insert_date.weekday() == 6:
             # Sunday -> weekend bucket
             weekend_indexes.append(i)
 
@@ -491,14 +492,16 @@ def generate_hours_of_operation_summary_table(alerts: pd.DataFrame,
     end_hour = business_hours._end_hour
 
     business_day_cycle_time_averages = []
-    weekend_cycle_time_averages = []
-    nights_cycle_time_averages = []
     business_day_cycle_time_stdev = []
-    weekend_cycle_time_stdev = []
-    nights_cycle_time_stdev = []
     business_day_quantities = []
+
+    weekend_cycle_time_averages = []
+    weekend_cycle_time_stdev = []
     weekend_quantities = []
-    weeknight_quantities = []
+
+    nights_cycle_time_averages = []
+    nights_cycle_time_stdev = []
+    nights_quantities = []
     for month in months:
         try:
             bday_ct = bday.loc[month, 'disposition_time'] - bday.loc[month, 'insert_date']
@@ -528,11 +531,11 @@ def generate_hours_of_operation_summary_table(alerts: pd.DataFrame,
         weekend_cycle_time_averages.append((weekend_ct.mean().total_seconds() / 60) / 60)
 
         business_day_cycle_time_stdev.append((bday_ct.std().total_seconds() / 60) / 60)
-        weekend_cycle_time_stdev.append((nights_ct.std().total_seconds() / 60) / 60)
         nights_cycle_time_stdev.append((weekend_ct.std().total_seconds() / 60) / 60)
+        weekend_cycle_time_stdev.append((nights_ct.std().total_seconds() / 60) / 60)
 
         business_day_quantities.append(len(bday_ct))
-        weeknight_quantities.append(len(nights_ct))
+        nights_quantities.append(len(nights_ct))
         weekend_quantities.append(len(weekend_ct))
 
     data = {
@@ -543,7 +546,7 @@ def generate_hours_of_operation_summary_table(alerts: pd.DataFrame,
              ('Cycle-Time Std. Dev.', 'Nights'): nights_cycle_time_stdev,
              ('Cycle-Time Std. Dev.', 'Weekend'): weekend_cycle_time_stdev,
              ('Quantities', 'Bus Hrs'): business_day_quantities,
-             ('Quantities', 'Nights'): weeknight_quantities,
+             ('Quantities', 'Nights'): nights_quantities,
              ('Quantities', 'Weekend'): weekend_quantities
             }
 
@@ -596,7 +599,7 @@ def generate_overall_summary_table(alerts: pd.DataFrame,
              'Business hour Cycle Time Avg.': bh_cycletime,
              'Business hour Cycle Time Std.': bh_std,
              'Cycle time Avg.': real_cycletime,
-             'Cyclet time std.': real_std,
+             'Cycle time std.': real_std,
              'Quantity': quantities
            }
 

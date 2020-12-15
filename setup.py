@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 description = 'A lib for measuring ACE based IDR operations.'
 
 here = path.abspath(path.dirname(__file__))
