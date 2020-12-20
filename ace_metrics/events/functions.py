@@ -1,4 +1,3 @@
-
 """Metric functions for ACE Events data.
 
 Every function in this file should expliclty work with
@@ -15,15 +14,13 @@ import pandas as pd
 
 from datetime import datetime
 
-from .constants import ( INCIDENT_DISPOSITIONS,
-                         EVENT_DISPOSITIONS,
-                         EVENT_DB_QUERY,
-                         EVENT_COUNT_TIME_DB_QUERY
-                       )
+from .constants import INCIDENT_DISPOSITIONS, EVENT_DISPOSITIONS, EVENT_DB_QUERY, EVENT_COUNT_TIME_DB_QUERY
 
-def add_email_alert_counts_per_event(events: pd.DataFrame,
-                                     con: pymysql.connections.Connection,
-                                    ) -> pd.DataFrame:
+
+def add_email_alert_counts_per_event(
+    events: pd.DataFrame,
+    con: pymysql.connections.Connection,
+) -> pd.DataFrame:
     """Count the number of emails in each event.
 
     Iterate over every event and count the number of alerts, in each event,
@@ -53,7 +50,7 @@ def add_email_alert_counts_per_event(events: pd.DataFrame,
         WHERE 
         event_mapping.event_id=%s AND company.name=%s"""
 
-    # given event id and company name, get count of emails based on 
+    # given event id and company name, get count of emails based on
     # alerts with a message_id observables.
     # NOTE: I don't remember why `a.alert_type!='o365'` is specified
     #   should probably be removed.
@@ -73,29 +70,29 @@ def add_email_alert_counts_per_event(events: pd.DataFrame,
 
     email_counts = []
     for event in events.itertuples():
-        if ',' in event.Company:
-            companies = event.Company.split(', ')
+        if "," in event.Company:
+            companies = event.Company.split(", ")
             new_alert_count = email_count = ""
             for company in companies:
                 params = [event.id, company]
                 company_alerts = pd.read_sql_query(alert_count_per_company_query, con, params=params)
                 email_alerts = pd.read_sql_query(email_count_per_company_query, con, params=params)
-                new_alert_count += str(int(company_alerts.alert_count.values))+","
+                new_alert_count += str(int(company_alerts.alert_count.values)) + ","
 
                 # all mailbox alerts will be unique phish
-                mailbox_phish = email_alerts.loc[email_alerts.alert_type=='mailbox']
+                mailbox_phish = email_alerts.loc[email_alerts.alert_type == "mailbox"]
                 mailbox_phish_count = len(mailbox_phish)
                 unique_phish = list(set(mailbox_phish.value.values))
 
                 # remove mailbox alerts and leave any other alerts with a message_id observable
-                email_alerts = email_alerts[email_alerts.alert_type!='mailbox']
+                email_alerts = email_alerts[email_alerts.alert_type != "mailbox"]
                 for alert in email_alerts.itertuples():
                     if alert.value not in unique_phish:
                         unique_phish.append(alert.value)
                         mailbox_phish_count += 1
-                email_count += str(mailbox_phish_count)+","
+                email_count += str(mailbox_phish_count) + ","
 
-            events.loc[events.id == event.id, '# Alerts'] = new_alert_count[:-1]
+            events.loc[events.id == event.id, "# Alerts"] = new_alert_count[:-1]
             email_counts.append(email_count[:-1])
         else:
             params = [event.id, event.Company]
@@ -103,33 +100,35 @@ def add_email_alert_counts_per_event(events: pd.DataFrame,
             company_alerts = pd.read_sql_query(alert_count_per_company_query, con, params=params)
 
             alert_count = int(company_alerts.alert_count.values)
-            total_alerts = int(events.loc[events.id == event.id, '# Alerts'].values)
-            if alert_count != total_alerts: 
+            total_alerts = int(events.loc[events.id == event.id, "# Alerts"].values)
+            if alert_count != total_alerts:
                 # multi-company event, but a company filter must has been applied
                 # update alert column to only alerts associated to the company
-                events.loc[events.id == event.id, '# Alerts'] = alert_count
+                events.loc[events.id == event.id, "# Alerts"] = alert_count
 
             # all mailbox alerts will be unique phish
-            mailbox_phish = email_alerts.loc[email_alerts.alert_type=='mailbox']
+            mailbox_phish = email_alerts.loc[email_alerts.alert_type == "mailbox"]
             mailbox_phish_count = len(mailbox_phish)
             unique_phish = list(set(mailbox_phish.value.values))
 
             # remove mailbox alerts and leave any other alerts with a message_id observable
-            email_alerts = email_alerts[email_alerts.alert_type!='mailbox']
+            email_alerts = email_alerts[email_alerts.alert_type != "mailbox"]
             for alert in email_alerts.itertuples():
                 if alert.value not in unique_phish:
                     unique_phish.append(alert.value)
                     mailbox_phish_count += 1
             email_counts.append(mailbox_phish_count)
 
-    events['# Emails'] = email_counts
+    events["# Emails"] = email_counts
 
-def get_events_between_dates(start_date: datetime,
-                             end_date: datetime,
-                             con: pymysql.connections.Connection,
-                             event_query: str =EVENT_DB_QUERY,
-                             selected_companies: list =[],
-                            ) -> pd.DataFrame:
+
+def get_events_between_dates(
+    start_date: datetime,
+    end_date: datetime,
+    con: pymysql.connections.Connection,
+    event_query: str = EVENT_DB_QUERY,
+    selected_companies: list = [],
+) -> pd.DataFrame:
     """Query the database for all ACE events between two dates.
 
     Query the ACE database using the passed `db` connection using the `event_query`.
@@ -153,21 +152,24 @@ def get_events_between_dates(start_date: datetime,
     if selected_companies:
         cursor = con.cursor()
         cursor.execute("select * from company")
-        for c_id,c_name in cursor.fetchall():
+        for c_id, c_name in cursor.fetchall():
             if c_name in selected_companies:
                 company_ids.append(c_id)
 
-    event_query = event_query.format(' AND ' if company_ids else '', '( ' + ' OR '.join(['company.id=%s' for company in selected_companies]) +') ' if company_ids else '')
+    event_query = event_query.format(
+        " AND " if company_ids else "",
+        "( " + " OR ".join(["company.id=%s" for company in selected_companies]) + ") " if company_ids else "",
+    )
 
-    params = [start_date.strftime('%Y-%m-%d %H:%M:%S'),
-              end_date.strftime('%Y-%m-%d %H:%M:%S')]
+    params = [start_date.strftime("%Y-%m-%d %H:%M:%S"), end_date.strftime("%Y-%m-%d %H:%M:%S")]
     params.extend(company_ids)
 
     events = pd.read_sql_query(event_query, con, params=params)
-    events.set_index('Date', inplace=True)
+    events.set_index("Date", inplace=True)
     events.name = "Events"
 
     return events
+
 
 def get_incidents_from_events(events: pd.DataFrame, incident_dispositions=INCIDENT_DISPOSITIONS) -> pd.DataFrame:
     """Get all incidents from events that have incident dispositions.
@@ -184,15 +186,16 @@ def get_incidents_from_events(events: pd.DataFrame, incident_dispositions=INCIDE
     """
 
     incidents = events[events.Disposition.isin(incident_dispositions)]
-    incidents = incidents.drop(columns=['id'])
+    incidents = incidents.drop(columns=["id"])
     incidents.name = "Incidents"
     return incidents
+
 
 def event_count_by_disposition(events: pd.DataFrame) -> dict:
     """Count event totals per disposition"""
 
-    events.set_index('Disposition', inplace=True)
-    dispositions = events.index.get_level_values('Disposition').unique()
+    events.set_index("Disposition", inplace=True)
+    dispositions = events.index.get_level_values("Disposition").unique()
 
     dispo_data = {}
     for dispo in dispositions:
@@ -202,12 +205,13 @@ def event_count_by_disposition(events: pd.DataFrame) -> dict:
     dispo_df = pd.DataFrame(data=dispo_data, columns=dispositions)
     return dispo_df
 
-def count_event_dispositions_by_time_period(time_key: str,
-                                            events: pd.DataFrame,
-                                            dispositions=EVENT_DISPOSITIONS) -> pd.DataFrame:
+
+def count_event_dispositions_by_time_period(
+    time_key: str, events: pd.DataFrame, dispositions=EVENT_DISPOSITIONS
+) -> pd.DataFrame:
     """Count events by their disposition over time.
 
-       NOTE: events like EVENT_COUNT_TIME_DB_QUERY.
+    NOTE: events like EVENT_COUNT_TIME_DB_QUERY.
     """
     time_keys = events.index.get_level_values(time_key).unique()
 

@@ -19,14 +19,17 @@ CompanyID = int
 CompanyName = str
 CompanyMap = Mapping[CompanyID, CompanyName]
 
-def generate_html_plot(data_table: pd.DataFrame,
-                       kind="line",
-                       legend="top_left",
-                       toolbar_location="above",
-                       xlabel="Month",
-                       figsize=(1000,600),
-                       title=None,
-                       ylabel=None) -> str:
+
+def generate_html_plot(
+    data_table: pd.DataFrame,
+    kind="line",
+    legend="top_left",
+    toolbar_location="above",
+    xlabel="Month",
+    figsize=(1000, 600),
+    title=None,
+    ylabel=None,
+) -> str:
     """Convert a datatable into an HTML Bokeh plot.
 
     This is very customized with defaults.
@@ -45,31 +48,34 @@ def generate_html_plot(data_table: pd.DataFrame,
     import pandas_bokeh
 
     if ylabel is None:
-        ylabel="Hours"
+        ylabel = "Hours"
 
     if title is None:
         try:
             title = data_table.name
         except AttributeError:
-            title = ""    
+            title = ""
 
-    p = data_table.plot_bokeh(kind=kind,
-                              show_figure=False,
-                              legend=legend,
-                              toolbar_location=toolbar_location,
-                              figsize=figsize,
-                              title=title,
-                              zooming=False,
-                              xlabel=xlabel,
-                              ylabel=ylabel)
+    p = data_table.plot_bokeh(
+        kind=kind,
+        show_figure=False,
+        legend=legend,
+        toolbar_location=toolbar_location,
+        figsize=figsize,
+        title=title,
+        zooming=False,
+        xlabel=xlabel,
+        ylabel=ylabel,
+    )
 
     # override legend defaults
     p.legend.background_fill_alpha = 0
     p.legend.border_line_alpha = 0
-    p.xaxis.major_label_orientation = math.pi/4
-    if ylabel is not None and 'alert' in title.lower():
+    p.xaxis.major_label_orientation = math.pi / 4
+    if ylabel is not None and "alert" in title.lower():
         p.yaxis.axis_label = "Number of Alerts"
     return pandas_bokeh.embedded_html(p)
+
 
 def get_companies(con: pymysql.connections.Connection) -> CompanyMap:
     """Query the database for all companies.
@@ -85,9 +91,10 @@ def get_companies(con: pymysql.connections.Connection) -> CompanyMap:
     companies = {}
     cursor = con.cursor()
     cursor.execute("select * from company")
-    for c_id,c_name in cursor.fetchall():
+    for c_id, c_name in cursor.fetchall():
         companies[c_id] = c_name
     return companies
+
 
 def apply_company_selection_to_query(query: str, company_ids: list, selected_companies: list) -> str:
     """Update a metric SQL query to select where companies.
@@ -103,7 +110,11 @@ def apply_company_selection_to_query(query: str, company_ids: list, selected_com
         An updated SQL query string.
 
     """
-    return query.format(' AND ' if company_ids else '', '( ' + ' OR '.join(['company.name=%s' for company in selected_companies]) +') ' if company_ids else '')
+    return query.format(
+        " AND " if company_ids else "",
+        "( " + " OR ".join(["company.name=%s" for company in selected_companies]) + ") " if company_ids else "",
+    )
+
 
 def sanitize_table_name(table_name=None, keep_friendly=False) -> str:
     """Sanitize a table name.
@@ -126,15 +137,16 @@ def sanitize_table_name(table_name=None, keep_friendly=False) -> str:
 
     if not keep_friendly:
         # map the friendly names back to key name
-        for stat_key,stat_name in FRIENDLY_STAT_NAME_MAP.items():
+        for stat_key, stat_name in FRIENDLY_STAT_NAME_MAP.items():
             if stat_name in safe_name:
                 safe_name = safe_name.replace(stat_name, stat_key)
 
     _invalid_chars = ["\\", "*", "?", ":", "/", "[", "]"]
     for invalid_char in _invalid_chars:
-        safe_name = safe_name.replace(invalid_char, '-')
+        safe_name = safe_name.replace(invalid_char, "-")
 
     return safe_name
+
 
 def dataframes_to_archive_bytes_of_json_files(tables: List[pd.DataFrame]) -> bytes:
     """Create byte archive of tables as json files.
@@ -160,7 +172,7 @@ def dataframes_to_archive_bytes_of_json_files(tables: List[pd.DataFrame]) -> byt
             safe_table_name = sanitize_table_name(table.name, keep_friendly=True)
 
         table_buf = io.BytesIO()
-        table_bytes = table.to_json().encode('utf-8')
+        table_bytes = table.to_json().encode("utf-8")
         table_info = tarfile.TarInfo(name=f"{safe_table_name}.json")
         table_info.size = len(table_bytes)
         table_buf.write(table_bytes)
@@ -173,6 +185,7 @@ def dataframes_to_archive_bytes_of_json_files(tables: List[pd.DataFrame]) -> byt
     filebytes = buf.read()
     buf.close()
     return filebytes
+
 
 def dataframes_to_xlsx_bytes(tables: List[pd.DataFrame]) -> bytes:
     """Export dataframes to xlsx bytes.
@@ -200,7 +213,7 @@ def dataframes_to_xlsx_bytes(tables: List[pd.DataFrame]) -> bytes:
 
         # do additional table name cleanup for excel
         # try to clean up alert_type names
-        name_parts = clean_table_name.split(' - ')
+        name_parts = clean_table_name.split(" - ")
         if name_parts:
             _tmp_name = ""
             for part in name_parts[:-1]:
@@ -226,10 +239,8 @@ def dataframes_to_xlsx_bytes(tables: List[pd.DataFrame]) -> bytes:
     xlsx_bytes = io.BytesIO()
     writer = pd.ExcelWriter(xlsx_bytes)
     # write the tab name map first
-    tab_name_map_df = pd.DataFrame.from_dict(tab_name_map,
-                                            orient='index',
-                                            columns=['ACE Data Table Name'])
-    tab_name_map_df.index.names = ['Tab Name']
+    tab_name_map_df = pd.DataFrame.from_dict(tab_name_map, orient="index", columns=["ACE Data Table Name"])
+    tab_name_map_df.index.names = ["Tab Name"]
     tab_name_map_df.to_excel(writer, "Tab Name Map")
 
     # write the tables to excel tabs
@@ -246,6 +257,7 @@ def dataframes_to_xlsx_bytes(tables: List[pd.DataFrame]) -> bytes:
 
     return filebytes
 
+
 def connect_to_database(config: configparser.SectionProxy) -> pymysql.connections.Connection:
     """Connect to a configured ACE DB.
 
@@ -259,14 +271,16 @@ def connect_to_database(config: configparser.SectionProxy) -> pymysql.connection
     from getpass import getpass
 
     ssl_settings = None
-    if os.path.exists(config.get('ssl_ca_path')):
-        ssl_settings = {'ca': config['ssl_ca_path']}
+    if os.path.exists(config.get("ssl_ca_path")):
+        ssl_settings = {"ca": config["ssl_ca_path"]}
 
-    password = config.get('pass')
+    password = config.get("pass")
     if not password:
         password = getpass(f"Enter password for {config['user']}@{config['host']}: ")
 
-    db = pymysql.connect(host=config['host'], user=config['user'], password=password, database=config['database'], ssl=ssl_settings)
+    db = pymysql.connect(
+        host=config["host"], user=config["user"], password=password, database=config["database"], ssl=ssl_settings
+    )
     return db
 
 
@@ -276,10 +290,10 @@ def get_month_keys_between_two_dates(start_date: datetime, end_date: datetime) -
     months = []
     while start_date.year <= end_date.year:
         while start_date.month <= end_date.month:
-            months.append(datetime.strftime(start_date, '%Y%m'))
+            months.append(datetime.strftime(start_date, "%Y%m"))
             start_date += relativedelta(months=1)
             break
-        if start_date.month ==  end_date.month and start_date.year == end_date.year:
+        if start_date.month == end_date.month and start_date.year == end_date.year:
             break
 
     return months

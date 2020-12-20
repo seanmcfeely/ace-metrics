@@ -4,16 +4,11 @@
 # mean an event should be considered an incident.
 # If you add more, add them to the end of the list or
 # extend this list where ever you need to.
-INCIDENT_DISPOSITIONS = [ 'EXPLOITATION',
-                          'INSTALLATION',
-                          'COMMAND_AND_CONTROL',
-                          'EXFIL',
-                          'DAMAGE'
-                        ]
+INCIDENT_DISPOSITIONS = ["EXPLOITATION", "INSTALLATION", "COMMAND_AND_CONTROL", "EXFIL", "DAMAGE"]
 
 # The core ACE specific killchain dispositions that
 # mean an event should be considered an event.
-EVENT_DISPOSITIONS = ['DELIVERY'] + INCIDENT_DISPOSITIONS
+EVENT_DISPOSITIONS = ["DELIVERY"] + INCIDENT_DISPOSITIONS
 
 # Database query for getting events between two dates
 #  and pulling relevant details from the various table mappings
