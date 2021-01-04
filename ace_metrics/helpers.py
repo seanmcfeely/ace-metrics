@@ -288,12 +288,8 @@ def get_month_keys_between_two_dates(start_date: datetime, end_date: datetime) -
     """Get unique %Y%m (Months) between dates."""
 
     months = []
-    while start_date.year <= end_date.year:
-        while start_date.month <= end_date.month:
-            months.append(datetime.strftime(start_date, "%Y%m"))
-            start_date += relativedelta(months=1)
-            break
-        if start_date.month == end_date.month and start_date.year == end_date.year:
-            break
+    while start_date <= end_date:
+        months.append(datetime.strftime(start_date, "%Y%m"))
+        start_date += relativedelta(months=1)
 
     return months
