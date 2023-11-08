@@ -250,6 +250,7 @@ def alert_type_quantities_by_category_by_month(
     alert_categories_per_month = pd.DataFrame(data=data)
     alert_categories_per_month.name = "Alert Type Category Quantities"
     alert_categories_per_month.fillna(value=0, inplace=True)
+    alert_categories_per_month.index.name = "month"
     for col in alert_categories_per_month.select_dtypes(include=["float64"]):
         alert_categories_per_month[col] = alert_categories_per_month[col].astype("int")
 

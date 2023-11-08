@@ -6,3 +6,7 @@ businesstime
 configparser
 openpyxl
 argcomplete
+pandas<2.0.0
+dash-bootstrap-templates
+dash-bootstrap-components
+sqlite-utils
