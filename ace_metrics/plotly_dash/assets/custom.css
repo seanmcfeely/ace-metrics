@@ -1,0 +1,22 @@
+@media (min-width: 1400px) {
+
+    .container,
+    .container-fluid,
+    .container-lg,
+    .container-md,
+    .container-sm,
+    .container-xl,
+    .container-xxl {
+        max-width: none !important;
+    }
+}
+
+.modebar {
+    position: absolute;
+    top: 15px !important;
+}
+
+.Select-control {
+    background-color: transparent;
+    background: transparent;
+}

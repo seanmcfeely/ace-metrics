@@ -347,6 +347,7 @@ def statistics_by_month_by_dispo(
     for stat in stats:
         stat_data_map[stat] = pd.DataFrame(data=stat_data_map[stat])
         stat_data_map[stat].fillna(0, inplace=True)
+        stat_data_map[stat].index.name = "month"
 
     if stat == "alert_count":
         stat_data_map[stat] = stat_data_map[stat].astype(int)
@@ -470,7 +471,7 @@ def organize_alerts_by_time_category(
 
 
 def generate_hours_of_operation_summary_table(
-    alerts: pd.DataFrame, business_hours: businesstime.BusinessTime
+    alerts: pd.DataFrame, business_hours: businesstime.BusinessTime, standard_column_name: bool = False
 ) -> pd.DataFrame:
     """Cycle-time averages and alert quantities by operating hours and month.
 
@@ -483,6 +484,7 @@ def generate_hours_of_operation_summary_table(
         alerts: A pd.DataFrame of alerts
         business_hours: The businesstime.BusinessTime representation of the
           business hours to use. See `define_business_time()`
+        standard_column_name: Flag to standardize column names
 
     Returns:
         A pd.DataFrame.
@@ -507,15 +509,15 @@ def generate_hours_of_operation_summary_table(
     end_hour = business_hours._end_hour
 
     business_day_cycle_time_averages = []
-    business_day_cycle_time_stdev = []
+    business_day_cycle_time_std = []
     business_day_quantities = []
 
     weekend_cycle_time_averages = []
-    weekend_cycle_time_stdev = []
+    weekend_cycle_time_std = []
     weekend_quantities = []
 
     nights_cycle_time_averages = []
-    nights_cycle_time_stdev = []
+    nights_cycle_time_std = []
     nights_quantities = []
     for month in months:
         try:
@@ -545,25 +547,39 @@ def generate_hours_of_operation_summary_table(
         nights_cycle_time_averages.append((nights_ct.mean().total_seconds() / 60) / 60)
         weekend_cycle_time_averages.append((weekend_ct.mean().total_seconds() / 60) / 60)
 
-        business_day_cycle_time_stdev.append((bday_ct.std().total_seconds() / 60) / 60)
-        nights_cycle_time_stdev.append((weekend_ct.std().total_seconds() / 60) / 60)
-        weekend_cycle_time_stdev.append((nights_ct.std().total_seconds() / 60) / 60)
+        business_day_cycle_time_std.append((bday_ct.std().total_seconds() / 60) / 60)
+        nights_cycle_time_std.append((weekend_ct.std().total_seconds() / 60) / 60)
+        weekend_cycle_time_std.append((nights_ct.std().total_seconds() / 60) / 60)
 
         business_day_quantities.append(len(bday_ct))
         nights_quantities.append(len(nights_ct))
         weekend_quantities.append(len(weekend_ct))
 
-    data = {
-        ("Cycle-Time Averages", "Business"): business_day_cycle_time_averages,
-        ("Cycle-Time Averages", "Nights"): nights_cycle_time_averages,
-        ("Cycle-Time Averages", "Weekend"): weekend_cycle_time_averages,
-        ("Cycle-Time Std. Dev.", "Business"): business_day_cycle_time_stdev,
-        ("Cycle-Time Std. Dev.", "Nights"): nights_cycle_time_stdev,
-        ("Cycle-Time Std. Dev.", "Weekend"): weekend_cycle_time_stdev,
-        ("Quantities", "Bus Hrs"): business_day_quantities,
-        ("Quantities", "Nights"): nights_quantities,
-        ("Quantities", "Weekend"): weekend_quantities,
-    }
+    data = (
+        {
+            "bh_day_cycle_time_averages": business_day_cycle_time_averages,
+            "nights_cycle_time_averages": nights_cycle_time_averages,
+            "weekend_cycle_time_averages": weekend_cycle_time_averages,
+            "bh_day_cycle_time_std": business_day_cycle_time_std,
+            "nights_cycle_time_std": nights_cycle_time_std,
+            "weekend_cycle_time_std": weekend_cycle_time_std,
+            "bh_day_quantities": business_day_quantities,
+            "nights_quantities": nights_quantities,
+            "weekend_quantities": weekend_quantities,
+        }
+        if standard_column_name
+        else {
+            ("Cycle-Time Averages", "Business"): business_day_cycle_time_averages,
+            ("Cycle-Time Averages", "Nights"): nights_cycle_time_averages,
+            ("Cycle-Time Averages", "Weekend"): weekend_cycle_time_averages,
+            ("Cycle-Time Std. Dev.", "Business"): business_day_cycle_time_std,
+            ("Cycle-Time Std. Dev.", "Nights"): nights_cycle_time_std,
+            ("Cycle-Time Std. Dev.", "Weekend"): weekend_cycle_time_std,
+            ("Quantities", "Bus Hrs"): business_day_quantities,
+            ("Quantities", "Nights"): nights_quantities,
+            ("Quantities", "Weekend"): weekend_quantities,
+        }
+    )
 
     hop_df = pd.DataFrame(data, index=months)
     hop_df.fillna(0, inplace=True)
@@ -571,7 +587,9 @@ def generate_hours_of_operation_summary_table(
     return hop_df
 
 
-def generate_overall_summary_table(alerts: pd.DataFrame, business_hours: businesstime.BusinessTime) -> pd.DataFrame:
+def generate_overall_summary_table(
+    alerts: pd.DataFrame, business_hours: businesstime.BusinessTime, standard_column_name: bool = False
+) -> pd.DataFrame:
     """Generate an overall statistical summary for alerts by month.
 
     Organize alerts by month and then summarize the business hour and real hour
@@ -582,6 +600,7 @@ def generate_overall_summary_table(alerts: pd.DataFrame, business_hours: busines
         alerts: A pd.DataFrame of alerts
         business_hours: The businesstime.BusinessTime representation of the
           business hours to use. See `define_business_time()`
+        standard_column_name: Flag to standardize column names
 
     Returns:
         A pd.DataFrame.
@@ -590,10 +609,10 @@ def generate_overall_summary_table(alerts: pd.DataFrame, business_hours: busines
     months = alerts.index.get_level_values("month").unique()
 
     quantities = []
-    bh_cycletime = []
-    bh_std = []
-    real_cycletime = []
-    real_std = []
+    bh_cycletime_avg = []
+    bh_cycletime_std = []
+    real_cycletime_avg = []
+    real_cycletime_std = []
     for month in months:
         bh_alert_ct = get_business_hour_cycle_time(
             alerts.loc[[month], ["disposition_time", "insert_date"]], business_hours
@@ -605,18 +624,28 @@ def generate_overall_summary_table(alerts: pd.DataFrame, business_hours: busines
             bh_alert_ct = pd.Series(data=bh_alert_ct)
         if isinstance(alert_ct, pd.Timedelta):
             alert_ct = pd.Series(data=alert_ct)
-        bh_cycletime.append(((bh_alert_ct.mean()).total_seconds() / 60) / 60)
-        bh_std.append(((bh_alert_ct.std()).total_seconds() / 60) / 60)
-        real_cycletime.append(((alert_ct.mean()).total_seconds() / 60) / 60)
-        real_std.append(((alert_ct.std()).total_seconds() / 60) / 60)
+        bh_cycletime_avg.append(((bh_alert_ct.mean()).total_seconds() / 60) / 60)
+        bh_cycletime_std.append(((bh_alert_ct.std()).total_seconds() / 60) / 60)
+        real_cycletime_avg.append(((alert_ct.mean()).total_seconds() / 60) / 60)
+        real_cycletime_std.append(((alert_ct.std()).total_seconds() / 60) / 60)
 
-    data = {
-        "Business hour Cycle Time Avg.": bh_cycletime,
-        "Business hour Cycle Time Std.": bh_std,
-        "Cycle time Avg.": real_cycletime,
-        "Cycle time std.": real_std,
-        "Quantity": quantities,
-    }
+    data = (
+        {
+            "bh_cycletime_avg": bh_cycletime_avg,
+            "bh_cycletime_std": bh_cycletime_std,
+            "real_cycletime_avg": real_cycletime_avg,
+            "real_cycletime_std": real_cycletime_std,
+            "quantity": quantities,
+        }
+        if standard_column_name
+        else {
+            "Business hour Cycle Time Avg.": bh_cycletime_avg,
+            "Business hour Cycle Time Std.": bh_cycletime_std,
+            "Cycle time Avg.": real_cycletime_avg,
+            "Cycle time std.": real_cycletime_std,
+            "Quantity": quantities,
+        }
+    )
 
     result = pd.DataFrame(data, index=months)
     result.fillna(0, inplace=True)
