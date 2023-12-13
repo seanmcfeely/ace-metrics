@@ -7,6 +7,7 @@ All functions that generate charts will have a @callback decorator along
 Args:
     relayoutData: Contains layout changes such as hidden traces, or user
       interactions like zooming, resetting axes, etc.
+    template_data: Plot template based on chosen theme and color mode.
     current_fig: Existing figure to update, if applicable.
 
 Returns:
@@ -25,8 +26,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dash import Input, Output, State, callback, dcc
 
-from ace_metrics.plotly_dash.app_config import chart_config, df_store
-from ace_metrics.plotly_dash.helpers import double_click_reset_y_range, to_fiscal_year, to_ordinal
+from ace_metrics.plotly_dash.app import chart_config
+from ace_metrics.plotly_dash.helpers import double_click_reset_y_range, to_fiscal_year, to_ordinal, fetch_data
 
 dash.register_page(__name__, path="/hours-of-operations")
 
@@ -47,8 +48,6 @@ def generate_yearly_alert_count_df(hours_of_operation_df: pd.DataFrame) -> pd.Da
     df = df.append([last_12_months, total])
     return df
 
-
-df_yearly_alert_count = generate_yearly_alert_count_df(df_store["hours_of_operation"])
 
 layout = dbc.Container(
     [
@@ -82,7 +81,12 @@ layout = dbc.Container(
                     [
                         dcc.Dropdown(
                             id="year-dropdown",
-                            options=[{"label": year, "value": year} for year in df_yearly_alert_count.index],
+                            options=[
+                                {"label": year, "value": year}
+                                for year in generate_yearly_alert_count_df(
+                                    fetch_data(["hours_of_operation"], True)["hours_of_operation"]
+                                ).index
+                            ],
                             value=["last_12_months", "total"],
                             multi=True,
                         ),
@@ -102,12 +106,12 @@ layout = dbc.Container(
 
 @callback(
     Output("yearly-alert-counts-by-operating-hours", "figure"),
-    [Input("yearly-alert-counts-by-operating-hours", "relayoutData")],
+    [Input("yearly-alert-counts-by-operating-hours", "relayoutData"), Input("theme-template-store", "data")],
     [Input("year-dropdown", "value")],
     [State("yearly-alert-counts-by-operating-hours", "figure")],
 )
 def update_yearly_alert_counts_by_operating_hours(
-    relayoutData: Dict, selected_years: List[str], current_fig: Dict
+    relayoutData: Dict, template_data: Dict[str, Dict], selected_years: List[str], current_fig: Dict
 ) -> Union[go.Figure, Dict]:
     """Update or create chart of yearly alert counts by operating hours.
 
@@ -130,7 +134,7 @@ def update_yearly_alert_counts_by_operating_hours(
 
     # If the plot doesn't exist, create one
     if (not current_fig and relayoutData) or selected_years:
-        df = df_yearly_alert_count
+        df = generate_yearly_alert_count_df(fetch_data(["hours_of_operation"], True)["hours_of_operation"])
         df = df.rename(
             columns={
                 "bh_day_quantities": "Business Hours",
@@ -181,6 +185,7 @@ def update_yearly_alert_counts_by_operating_hours(
                 orientation="h",
                 title=dict(text=""),
             ),
+            template=template_data["template"],
         )
         return fig
 
@@ -189,10 +194,12 @@ def update_yearly_alert_counts_by_operating_hours(
 
 @callback(
     Output("yearly-hours-of-operation", "figure"),
-    [Input("yearly-hours-of-operation", "relayoutData")],
+    [Input("yearly-hours-of-operation", "relayoutData"), Input("theme-template-store", "data")],
     [State("yearly-hours-of-operation", "figure")],
 )
-def update_yearly_hours_of_operation(relayoutData: Dict, current_fig: Dict) -> go.Figure:
+def update_yearly_hours_of_operation(
+    relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict
+) -> go.Figure:
     """Update or create the yearly hours of operation bar chart.
 
     Generate a bar chart to represent average operation times across
@@ -201,7 +208,7 @@ def update_yearly_hours_of_operation(relayoutData: Dict, current_fig: Dict) -> g
       last 12 months and total averages by default.
     """
     if not current_fig and relayoutData:
-        df = df_store["hours_of_operation"].copy(deep=True).set_index("month")
+        df = fetch_data(["hours_of_operation"], True)["hours_of_operation"].set_index("month")
         df = df[["bh_day_cycle_time_averages", "nights_cycle_time_averages", "weekend_cycle_time_averages"]]
         total = df.mean()
         total.name = "total"
@@ -252,6 +259,7 @@ def update_yearly_hours_of_operation(relayoutData: Dict, current_fig: Dict) -> g
             xaxis_title="rank",
             yaxis_title="hours",
             margin=dict(t=43, l=0, r=0),
+            template=template_data["template"],
         )
         for trace in fig.data:
             if trace.name in ["last_12_months", "total"]:
@@ -266,17 +274,19 @@ def update_yearly_hours_of_operation(relayoutData: Dict, current_fig: Dict) -> g
 
 @callback(
     Output("hours-of-operation", "figure"),
-    [Input("hours-of-operation", "relayoutData")],
+    [Input("hours-of-operation", "relayoutData"), Input("theme-template-store", "data")],
     [State("hours-of-operation", "figure")],
 )
-def update_hours_of_operation(relayoutData: Dict, current_fig: Dict) -> Union[go.Figure, Dict]:
+def update_hours_of_operation(
+    relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict
+) -> Union[go.Figure, Dict]:
     """Update or create the monthly hours of operation line chart.
 
     Generate a line chart if it doesn't exist. If the chart already
       exists, double-clicking on it will reset the range of y-axis.
     """
     if not current_fig and relayoutData:
-        df = df_store["hours_of_operation"].copy(deep=True).set_index("month")
+        df = fetch_data(["hours_of_operation"], True)["hours_of_operation"].set_index("month")
         df = df[["bh_day_cycle_time_averages", "nights_cycle_time_averages", "weekend_cycle_time_averages"]]
         fig = px.line(
             df,
@@ -292,6 +302,7 @@ def update_hours_of_operation(relayoutData: Dict, current_fig: Dict) -> Union[go
             legend={"title_text": ""},
             yaxis_title="hours",
             margin=dict(t=43, l=0, r=0),
+            template=template_data["template"],
         )
         for trace in fig.data:
             if trace.name == "bh_day_cycle_time_averages":

@@ -118,13 +118,13 @@ def initialize_database() -> bool:
     return True
 
 
-def update_database() -> str:
+def update_database() -> None:
     """Upsert the local database with alert data from the past month.
 
     Returns:
         A timestamp string when the update was completed.
     """
-    logging.info("Updating database...")
+    logging.info("Updating local metrics database...")
     update_table_map = get_alert_tables_by_month(1)
 
     with sqlite3.connect(f"{DATA_DIR}/ace_metrics_database.sqlite") as conn:
@@ -132,5 +132,12 @@ def update_database() -> str:
         for table in update_table_map:
             db[table].upsert_all(update_table_map[table].reset_index().to_dict(orient="records"), pk="month")
 
+    # Update modifification time
+    os.utime(f"{DATA_DIR}/ace_metrics_database.sqlite", None)
     logging.info("Database update completed.")
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def get_last_update_time() -> str:
+    """Get last modified time of database."""
+    timestamp = os.path.getmtime(f"{DATA_DIR}/ace_metrics_database.sqlite")
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")

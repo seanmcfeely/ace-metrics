@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-__version__ = "0.2.0"
+__version__ = "0.2.2"
 description = "A lib for measuring ACE based IDR operations."
 
 here = path.abspath(path.dirname(__file__))
@@ -42,6 +42,9 @@ setup(
     python_requires=">=3.6",
     keywords="Information Security,ACE,ACE Ecosystem",
     packages=find_packages(),
+    package_data={
+      'ace_metrics.plotly_dash': ['assets/*'],
+    },
     include_package_data=True,
     install_requires=requirements,
     scripts=["ace-metrics"],

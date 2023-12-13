@@ -10,6 +10,7 @@ All functions that generate charts will have a @callback decorator along
 Args:
     relayoutData: Contains layout changes such as hidden traces, or user
       interactions like zooming, resetting axes, etc.
+    template_data: Plot template based on chosen theme and color mode.
     current_fig: Existing figure to update, if applicable.
 
 Returns:
@@ -29,8 +30,8 @@ import plotly.graph_objects as go
 from dash import Input, Output, State, callback, dcc
 from plotly.subplots import make_subplots
 
-from ace_metrics.plotly_dash.app_config import chart_config, df_store
-from ace_metrics.plotly_dash.helpers import double_click_reset_y_range, to_fiscal_year, to_ordinal
+from ace_metrics.plotly_dash.app import chart_config
+from ace_metrics.plotly_dash.helpers import double_click_reset_y_range, fetch_data, to_fiscal_year, to_ordinal
 
 dash.register_page(__name__, path="/")
 
@@ -47,7 +48,7 @@ def extended_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def update_side_by_side_chart(
-    relayoutData: Dict, current_fig: Dict, table: str, chart_title: str
+    relayoutData: Dict, current_fig: Dict, template: Dict, table: str, chart_title: str
 ) -> Union[Dict, go.Figure]:
     """Update or create a side-by-side chart based on provided data.
 
@@ -59,8 +60,8 @@ def update_side_by_side_chart(
         chart_title: Title of the chart.
     """
     if not current_fig and relayoutData:
-        df = extended_df(df_store[table])
-        df_bh = extended_df(df_store[f"{table}_BH"])
+        df = extended_df(fetch_data([table], True)[table])
+        df_bh = extended_df(fetch_data([f"{table}_BH"], True)[f"{table}_BH"])
         included_cols = [
             "month",
             "exploitation+installation",
@@ -202,6 +203,7 @@ def update_side_by_side_chart(
                 "bgcolor": "rgba(0,0,0,0)",
             },
             margin=dict(t=114, l=0, r=0, b=0),
+            template=template,
         )
 
         fig.update_yaxes(title_text="hours", row=1, col=1)
@@ -312,13 +314,13 @@ layout = dbc.Container(
 
 @callback(
     Output("alert-count", "figure"),
-    [Input("alert-count", "relayoutData")],
+    [Input("alert-count", "relayoutData"), Input("theme-template-store", "data")],
     [State("alert-count", "figure")],
 )
-def update_alert_count(relayoutData: Dict, current_fig: Dict) -> Union[go.Figure, Dict]:
+def update_alert_count(relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict) -> Union[go.Figure, Dict]:
     """Update or create a monthly alert count line chart."""
     if not current_fig and relayoutData:
-        df = extended_df(df_store["alert_count"])
+        df = extended_df(fetch_data(["alert_count"], True)["alert_count"])
         df = df[
             [
                 "month",
@@ -350,6 +352,7 @@ def update_alert_count(relayoutData: Dict, current_fig: Dict) -> Union[go.Figure
             title="Monthly Alert Counts",
             range_x=[len(df["month"]) - 61, len(df["month"]) - 1],  # 60 months back of data for default view
             range_y=[0, df.tail(61).iloc[:, 1].max().max()],
+            template=template_data["template"],
         )
 
         buttons = [
@@ -425,14 +428,16 @@ def update_alert_count(relayoutData: Dict, current_fig: Dict) -> Union[go.Figure
 
 @callback(
     Output("yearly-alert-rank", "figure"),
-    [Input("yearly-alert-rank", "relayoutData")],
+    [Input("yearly-alert-rank", "relayoutData"), Input("theme-template-store", "data")],
     [State("yearly-alert-rank", "figure")],
 )
-def update_yearly_alert_ranks(relayoutData: Dict, current_fig: Dict) -> Union[Dict, go.Figure]:
+def update_yearly_alert_ranks(
+    relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict
+) -> Union[Dict, go.Figure]:
     """Update or create bar charts to rank alert types over a period."""
 
     def _create_plot(selected_columns: List[str]):
-        df = extended_df(df_store["alert_count"]).set_index("month")
+        df = extended_df(fetch_data(["alert_count"], True)["alert_count"]).set_index("month")
         last_6_months = df.tail(6).sum()
         last_6_months.name = "last_6_months"
         last_12_months = df.tail(12).sum()
@@ -494,6 +499,7 @@ def update_yearly_alert_ranks(relayoutData: Dict, current_fig: Dict) -> Union[Di
                 "bgcolor": "rgba(0,0,0,0)",
             },
             margin=dict(t=55, l=0, r=0, b=55),
+            template=template_data["template"],
         )
         for i, trace in enumerate(fig.data):
             if trace.name in ["last_12_months", df.columns[-4]]:
@@ -506,7 +512,9 @@ def update_yearly_alert_ranks(relayoutData: Dict, current_fig: Dict) -> Union[Di
     critical_columns = ["exploitation+installation", "recon+weaponization", "actions_on_objectives", "delivery"]
     default_columns = [
         col
-        for col in extended_df(df_store["alert_count"]).columns.drop(["total", "month", "false_positive"])
+        for col in extended_df(fetch_data(["alert_count"], True)["alert_count"]).columns.drop(
+            ["total", "month", "false_positive"]
+        )
         if col not in critical_columns
     ]
     selected_columns = default_columns
@@ -533,13 +541,13 @@ def update_yearly_alert_ranks(relayoutData: Dict, current_fig: Dict) -> Union[Di
 
 @callback(
     Output("alert-sla", "figure"),
-    [Input("alert-sla", "relayoutData")],
+    [Input("alert-sla", "relayoutData"), Input("theme-template-store", "data")],
     [State("alert-sla", "figure")],
 )
-def update_alert_sla(relayoutData: Dict, current_fig: Dict) -> Union[go.Figure, Dict]:
+def update_alert_sla(relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict) -> Union[go.Figure, Dict]:
     """Update or create a monthly alerts SLA line chart."""
     if not current_fig and relayoutData:
-        df = df_store["overall_operating_alert"].copy(deep=True).set_index("month")
+        df = fetch_data(["overall_operating_alert"], True)["overall_operating_alert"].set_index("month")
         df = df[["bh_cycletime_avg", "real_cycletime_avg"]]
         fig = px.line(
             df,
@@ -561,6 +569,7 @@ def update_alert_sla(relayoutData: Dict, current_fig: Dict) -> Union[go.Figure, 
                 bgcolor="rgba(0,0,0,0)",
             ),
             margin=dict(t=55, l=0, r=0, b=0),
+            template=template_data["template"],
         )
 
         for trace in fig.data:
@@ -582,13 +591,15 @@ def update_alert_sla(relayoutData: Dict, current_fig: Dict) -> Union[go.Figure, 
 
 @callback(
     Output("alert-by-analyst", "figure"),
-    [Input("alert-by-analyst", "relayoutData")],
+    [Input("alert-by-analyst", "relayoutData"), Input("theme-template-store", "data")],
     [State("alert-by-analyst", "figure")],
 )
-def update_alert_by_analyst(relayoutData: Dict, current_fig: Dict) -> Union[Dict, go.Figure]:
+def update_alert_by_analyst(
+    relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict
+) -> Union[Dict, go.Figure]:
     """Update or create a line chart for alerts dispo'ed by analyst."""
     if not current_fig and relayoutData:
-        df = df_store["analyst_alert_quantities"].copy(deep=True).set_index("month")
+        df = fetch_data(["analyst_alert_quantities"], True)["analyst_alert_quantities"].set_index("month")
         df.sort_index(inplace=True)
 
         # Drop inactive users since last year
@@ -613,6 +624,7 @@ def update_alert_by_analyst(relayoutData: Dict, current_fig: Dict) -> Union[Dict
                 "bgcolor": "rgba(0,0,0,0)",
             },
             margin=dict(t=100, l=0, r=0, b=0),
+            template=template_data["template"],
         )
         return fig
 
@@ -625,13 +637,15 @@ def update_alert_by_analyst(relayoutData: Dict, current_fig: Dict) -> Union[Dict
 
 @callback(
     Output("alert-count-by-type", "figure"),
-    [Input("alert-count-by-type", "relayoutData")],
+    [Input("alert-count-by-type", "relayoutData"), Input("theme-template-store", "data")],
     [State("alert-count-by-type", "figure")],
 )
-def update_alert_count_by_type(relayoutData, current_fig):
+def update_alert_count_by_type(
+    relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict
+) -> Union[go.Figure, Dict]:
     """Update or create a line chart for alert quantities by type."""
     if not current_fig and relayoutData:
-        df = df_store["alert_type_quantities"].copy(deep=True).set_index("month")
+        df = fetch_data(["alert_type_quantities"], True)["alert_type_quantities"].set_index("month")
         df.sort_index(inplace=True)
 
         fig = px.line(
@@ -642,6 +656,7 @@ def update_alert_count_by_type(relayoutData, current_fig):
             title="Alert Type Category Quantities",
             range_x=[len(df.index) - 13, len(df.index) - 1],  # 12 months back of data for default view
             range_y=[0, df.tail(13).max().max()],
+            template=template_data["template"],
         )
 
         fig.update_layout(
@@ -664,31 +679,45 @@ def update_alert_count_by_type(relayoutData, current_fig):
 
 @callback(
     Output("total-open-time", "figure"),
-    [Input("total-open-time", "relayoutData")],
+    [Input("total-open-time", "relayoutData"), Input("theme-template-store", "data")],
     [State("total-open-time", "figure")],
 )
-def update_total_open_time(relayoutData: Dict, current_fig: Dict) -> Union[Dict, go.Figure]:
+def update_total_open_time(
+    relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict
+) -> Union[Dict, go.Figure]:
     """Generate Total Open Time chart."""
-    return update_side_by_side_chart(relayoutData, current_fig, "cycle_time_sum", "Total Open Time")
+    return update_side_by_side_chart(
+        relayoutData, current_fig, template_data["template"], "cycle_time_sum", "Total Open Time"
+    )
 
 
 @callback(
     Output("avg-time-to-dispo", "figure"),
-    [Input("avg-time-to-dispo", "relayoutData")],
+    [Input("avg-time-to-dispo", "relayoutData"), Input("theme-template-store", "data")],
     [State("avg-time-to-dispo", "figure")],
 )
-def update_avg_time_to_dispo(relayoutData: Dict, current_fig: Dict) -> Union[Dict, go.Figure]:
+def update_avg_time_to_dispo(
+    relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict
+) -> Union[Dict, go.Figure]:
     """Generate Average Time to Disposition chart."""
-    return update_side_by_side_chart(relayoutData, current_fig, "cycle_time_mean", "Average Time to Disposition")
+    return update_side_by_side_chart(
+        relayoutData, current_fig, template_data["template"], "cycle_time_mean", "Average Time to Disposition"
+    )
 
 
 @callback(
     Output("std-time-to-dispo", "figure"),
-    [Input("std-time-to-dispo", "relayoutData")],
+    [Input("std-time-to-dispo", "relayoutData"), Input("theme-template-store", "data")],
     [State("std-time-to-dispo", "figure")],
 )
-def update_std_time_to_dispo(relayoutData: Dict, current_fig: Dict) -> Union[Dict, go.Figure]:
+def update_std_time_to_dispo(
+    relayoutData: Dict, template_data: Dict[str, Dict], current_fig: Dict
+) -> Union[Dict, go.Figure]:
     """Generate Standard Deviation for Time to Disposition chart."""
     return update_side_by_side_chart(
-        relayoutData, current_fig, "cycle_time_std", "Standard Deviation for Time to Disposition"
+        relayoutData,
+        current_fig,
+        template_data["template"],
+        "cycle_time_std",
+        "Standard Deviation for Time to Disposition",
     )
