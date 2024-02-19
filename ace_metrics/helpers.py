@@ -87,7 +87,6 @@ def get_companies(con: pymysql.connections.Connection) -> CompanyMap:
         A dict of companies like so:
           {company_id: 'company_name'}, ..
     """
-
     companies = {}
     cursor = con.cursor()
     cursor.execute("select * from company")
@@ -129,7 +128,6 @@ def sanitize_table_name(table_name=None, keep_friendly=False) -> str:
     Returns:
        A santized name string.
     """
-
     if table_name is None:
         return f"No name - {datetime.now().timestamp()}"
 
@@ -162,7 +160,6 @@ def dataframes_to_archive_bytes_of_json_files(tables: List[pd.DataFrame]) -> byt
         The bytestring of a tar.gz archive containing the
         tables as json files.
     """
-
     buf = io.BytesIO()
     tar = tarfile.open(mode="w:gz", fileobj=buf)
     for table in tables:
@@ -198,7 +195,6 @@ def dataframes_to_xlsx_bytes(tables: List[pd.DataFrame]) -> bytes:
     Returns:
         The bytestring representation of the xlsx file.
     """
-
     tab_names = []
     tab_name_map = {}
     table_tab_map = {}
@@ -231,7 +227,7 @@ def dataframes_to_xlsx_bytes(tables: List[pd.DataFrame]) -> bytes:
 
         tab_names.append(clean_table_name)
 
-        logging.info(f"changed table name from '{table_name}' to '{clean_table_name}'")
+        logging.debug(f"changed table name from '{table_name}' to '{clean_table_name}'")
         # will add this helpful info to the excel sheet
         tab_name_map[clean_table_name] = table_name
         table_tab_map[clean_table_name] = table
@@ -286,7 +282,6 @@ def connect_to_database(config: configparser.SectionProxy) -> pymysql.connection
 
 def get_month_keys_between_two_dates(start_date: datetime, end_date: datetime) -> list:
     """Get unique %Y%m (Months) between dates."""
-
     months = []
     while start_date <= end_date:
         months.append(datetime.strftime(start_date, "%Y%m"))

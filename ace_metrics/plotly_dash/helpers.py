@@ -7,23 +7,23 @@ import pandas as pd
 
 from .database import DATA_DIR
 
-VALID_TABLE_NAMES = [
-    "analyst_alert_quantities",
-    "alert_type_quantities",
-    "hours_of_operation",
-    "overall_operating_alert",
-    "cycle_time_sum",
-    "cycle_time_mean",
-    "cycle_time_min",
-    "cycle_time_max",
-    "cycle_time_std",
-    "alert_count",
-    "cycle_time_sum_BH",
-    "cycle_time_mean_BH",
-    "cycle_time_min_BH",
-    "cycle_time_max_BH",
-    "cycle_time_std_BH",
-]
+VALID_TABLE_NAMES_MAP = {
+    "alert_count": "Alert Quantities by Disposition",
+    "alert_type_quantities": "Alert Type Category Quantities",
+    "analyst_alert_quantities": "Alert Quantities by Analyst",
+    "hours_of_operation": "Hours of Operation",
+    "overall_operating_alert": "Overall Operating Alert Summary",
+    "cycle_time_sum_BH": "Total Open Time (Business Hours)",
+    "cycle_time_mean_BH": "Average Time to Disposition (Business Hours)",
+    "cycle_time_std_BH": "Standard Deviation for Time to Disposition (Business Hours)",
+    "cycle_time_min_BH": "Quickest Disposition (Business Hours)",
+    "cycle_time_max_BH": "Slowest Disposition (Business Hours)",
+    "cycle_time_sum": "Total Open Time",
+    "cycle_time_mean": "Average Time to Disposition",
+    "cycle_time_std": "Standard Deviation for Time to Disposition",
+    "cycle_time_min": "Quickest Disposition",
+    "cycle_time_max": "Slowest Disposition",
+}
 
 
 def fetch_data(tables: List[str], clean_column_names: bool = False) -> Dict[str, pd.DataFrame]:
@@ -44,9 +44,10 @@ def fetch_data(tables: List[str], clean_column_names: bool = False) -> Dict[str,
     conn = sqlite3.connect(f"{DATA_DIR}/ace_metrics_database.sqlite")
     df_dict = {}
     for table in tables:
-        if table not in VALID_TABLE_NAMES:
+        if table not in VALID_TABLE_NAMES_MAP:
             raise ValueError("Invalid table name")
         df = pd.read_sql_query(f"SELECT * FROM {table};", conn)
+        df.name = VALID_TABLE_NAMES_MAP[table]
         if clean_column_names:
             df.rename(columns={"index": "month"}, inplace=True)
             df.columns = df.columns.str.lower()

@@ -72,7 +72,11 @@ def get_alert_tables_by_month(months_ago: int) -> Dict[str, Any]:
     logging.info(f"Querying alerts data from {start_date} up until {end_date} (now).")
 
     alerts = get_alerts_between_dates(start_date, end_date, db, selected_companies=["ashland"])
-    exception_list = DATABASE_CONFIG["alert_data_exception_list"].split(",")
+    exception_list = (
+        DATABASE_CONFIG["alert_data_exception_list"].split(",")
+        if DATABASE_CONFIG.get("alert_data_exception_list")
+        else []
+    )
     alerts = apply_alert_data_exceptions(config, alerts, exception_list)
     alert_stat_map = statistics_by_month_by_dispo(alerts)
     alert_stat_map_bh = statistics_by_month_by_dispo(alerts, business_hours=business_hours)
@@ -119,12 +123,7 @@ def initialize_database() -> bool:
 
 
 def update_database() -> None:
-    """Upsert the local database with alert data from the past month.
-
-    Returns:
-        A timestamp string when the update was completed.
-    """
-    logging.info("Updating local metrics database...")
+    """Upsert the local database with alert data from the past month."""
     update_table_map = get_alert_tables_by_month(1)
 
     with sqlite3.connect(f"{DATA_DIR}/ace_metrics_database.sqlite") as conn:
@@ -134,7 +133,7 @@ def update_database() -> None:
 
     # Update modifification time
     os.utime(f"{DATA_DIR}/ace_metrics_database.sqlite", None)
-    logging.info("Database update completed.")
+    logging.info("ACE Metrics database update has been completed.")
 
 
 def get_last_update_time() -> str:

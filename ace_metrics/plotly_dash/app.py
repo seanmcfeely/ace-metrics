@@ -88,11 +88,27 @@ def serve_layout() -> dbc.Container:
                     dbc.Card(
                         dbc.CardBody(
                             [
-                                dbc.NavLink("Alerts", href="/", active="exact", id="alerts-nav"),
                                 dbc.NavLink(
-                                    "Hours of Operations", href="/hours-of-operations", id="hours-of-operations-nav"
+                                    "Alerts",
+                                    href=f"{DASH_CONFIG.get('requests_pathname_prefix', '/')}",
+                                    active="exact",
+                                    id="alerts-nav",
                                 ),
-                                dbc.NavLink("Events", href="/events", id="events-nav"),
+                                dbc.NavLink(
+                                    "Hours of Operations",
+                                    href=f"{DASH_CONFIG.get('requests_pathname_prefix', '/')}hours-of-operations",
+                                    id="hours-of-operations-nav",
+                                ),
+                                dbc.NavLink(
+                                    "Events",
+                                    href=f"{DASH_CONFIG.get('requests_pathname_prefix', '/')}events",
+                                    id="events-nav",
+                                ),
+                                dbc.NavLink(
+                                    "Settings",
+                                    href=f"{DASH_CONFIG.get('requests_pathname_prefix', '/')}settings",
+                                    id="settings-nav",
+                                ),
                             ]
                         )
                     ),
